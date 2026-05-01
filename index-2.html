@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SOS App Quiz</title>
+
+<style>
+  :root {
+    --purple-deep: #6D28D9;
+    --purple-main: #8B5CF6;
+    --purple-mid: #A78BFA;
+    --purple-pale: #EDE9FE;
+    --amber: #F59E0B;
+    --green: #10B981;
+    --red: #EF4444;
+    --white: #FFFFFF;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: Arial, sans-serif;
+    background: #0f0a1e;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* Animated background blobs */
+  .blob {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.25;
+    animation: float 8s ease-in-out infinite;
+    pointer-events: none;
+  }
+  .blob1 { width: 400px; height: 400px; background: var(--purple-main); top: -100px; left: -100px; animation-delay: 0s; }
+  .blob2 { width: 350px; height: 350px; background: #EC4899; bottom: -80px; right: -80px; animation-delay: 3s; }
+  .blob3 { width: 250px; height: 250px; background: var(--amber); top: 50%; left: 50%; transform: translate(-50%,-50%); animation-delay: 1.5s; }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-30px) scale(1.05); }
+  }
+
+  .screen {
+    display: none;
+    width: 100%;
+    max-width: 480px;
+    padding: 20px;
+    position: relative;
+    z-index: 10;
+    animation: fadeUp 0.5s ease;
+  }
+  .screen.active { display: flex; flex-direction: column; align-items: center; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ===== INTRO SCREEN ===== */
+  .intro-logo {
+    font-family: 'Arial Black', Arial, sans-serif;
+    font-size: 72px;
+    font-weight: 800;
+    color: white;
+    letter-spacing: -2px;
+    line-height: 1;
+    text-align: center;
+  }
+  .intro-logo span {
+    background: linear-gradient(135deg, var(--purple-mid), #EC4899, var(--amber));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .intro-sub {
+    font-family: Arial, sans-serif;
+    color: var(--purple-mid);
+    font-size: 13px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-top: 6px;
+    text-align: center;
+  }
+  .intro-title {
+    font-family: 'Arial Black', Arial, sans-serif;
+    font-size: 28px;
+    color: white;
+    text-align: center;
+    margin-top: 32px;
+    line-height: 1.2;
+  }
+  .intro-title em {
+    font-style: normal;
+    color: var(--amber);
+  }
+  .intro-desc {
+    color: rgba(255,255,255,0.55);
+    text-align: center;
+    font-size: 14px;
+    margin-top: 12px;
+    line-height: 1.6;
+  }
+  .badge-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 28px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .badge {
+    background: rgba(139,92,246,0.2);
+    border: 1px solid rgba(139,92,246,0.4);
+    color: var(--purple-mid);
+    padding: 6px 14px;
+    border-radius: 100px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .btn-start {
+    margin-top: 36px;
+    background: linear-gradient(135deg, var(--purple-main), #EC4899);
+    color: white;
+    border: none;
+    padding: 18px 48px;
+    border-radius: 100px;
+    font-family: 'Arial Black', Arial, sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 8px 30px rgba(139,92,246,0.4);
+    transition: transform 0.2s, box-shadow 0.2s;
+    width: 100%;
+    max-width: 300px;
+  }
+  .btn-start:hover { transform: scale(1.04); box-shadow: 0 12px 40px rgba(139,92,246,0.6); }
+
+  /* ===== QUESTION SCREEN ===== */
+  .progress-bar-wrap {
+    width: 100%;
+    background: rgba(255,255,255,0.1);
+    border-radius: 100px;
+    height: 6px;
+    margin-bottom: 20px;
+  }
+  .progress-bar-fill {
+    height: 6px;
+    border-radius: 100px;
+    background: linear-gradient(90deg, var(--purple-main), #EC4899);
+    transition: width 0.5s ease;
+  }
+  .q-meta {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    margin-bottom: 16px;
+    align-items: center;
+  }
+  .q-counter {
+    font-family: 'Arial Black', Arial, sans-serif;
+    color: var(--purple-mid);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .q-score-badge {
+    background: rgba(245,158,11,0.15);
+    border: 1px solid rgba(245,158,11,0.3);
+    color: var(--amber);
+    padding: 4px 12px;
+    border-radius: 100px;
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .q-card {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 24px;
+    padding: 28px 24px;
+    width: 100%;
+    backdrop-filter: blur(10px);
+  }
+  .q-emoji { font-size: 36px; text-align: center; display: block; margin-bottom: 14px; }
+  .q-text {
+    font-family: 'Arial Black', Arial, sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: white;
+    text-align: center;
+    line-height: 1.4;
+  }
+  .options-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    width: 100%;
+    margin-top: 20px;
+  }
+  .opt-btn {
+    background: rgba(255,255,255,0.06);
+    border: 2px solid rgba(255,255,255,0.12);
+    border-radius: 16px;
+    padding: 16px 12px;
+    color: white;
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+    line-height: 1.3;
+    position: relative;
+    overflow: hidden;
+  }
+  .opt-btn:hover:not(:disabled) {
+    background: rgba(139,92,246,0.2);
+    border-color: var(--purple-main);
+    transform: scale(1.03);
+  }
+  .opt-btn .opt-letter {
+    display: block;
+    font-family: 'Arial Black', Arial, sans-serif;
+    font-size: 11px;
+    font-weight: 800;
+    color: var(--purple-mid);
+    margin-bottom: 4px;
+    letter-spacing: 1px;
+  }
+  .opt-btn.correct {
+    background: rgba(16,185,129,0.2) !important;
+    border-color: var(--green) !important;
+    color: #6EE7B7 !important;
+  }
+  .opt-btn.wrong {
+    background: rgba(239,68,68,0.2) !important;
+    border-color: var(--red) !important;
+    color: #FCA5A5 !important;
+  }
+  .opt-btn.reveal-correct {
+    background: rgba(16,185,129,0.12) !important;
+    border-color: rgba(16,185,129,0.4) !important;
+  }
+
+  /* ===== FEEDBACK ===== */
+  .feedback-bar {
+    width: 100%;
+    border-radius: 16px;
+    padding: 14px 20px;
+    margin-top: 16px;
+    font-family: 'Arial Black', Arial, sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    text-align: center;
+    display: none;
+    animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+  @keyframes popIn {
+    from { opacity: 0; transform: scale(0.8); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  .feedback-bar.correct { background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.3); color: #6EE7B7; }
+  .feedback-bar.wrong { background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); color: #FCA5A5; }
+
+  .btn-next {
+    margin-top: 20px;
+    background: white;
+    color: var(--purple-deep);
+    border: none;
+    padding: 16px 32px;
+    border-radius: 100px;
+    font-family: 'Arial Black', Arial, sans-serif;
+    font-size: 15px;
+    font-weight: 800;
+    cursor: pointer;
+    width: 100%;
+    transition: transform 0.2s, box-shadow 0.2s;
+    display: none;
+    box-shadow: 0 4px 20px rgba(255,255,255,0.15);
+  }
+  .btn-next:hover { transform: scale(1.02); }
+
+  /* ===== RESULTS SCREEN ===== */
+  .results-ring {
+    position: relative;
+    width: 140px;
+    height: 140px;
+    margin: 20px auto;
+  }
+  .results-ring svg { transform: rotate(-90deg); }
+  .ring-bg { fill: none; stroke: rgba(255,255,255,0.08); stroke-width: 10; }
+  .ring-fill { fill: none; stroke-width: 10; stroke-linecap: round; transition: stroke-dashoffset 1.2s ease; }
+  .ring-text {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .ring-score {
+    font-family: 'Arial Black', Arial, sans-serif;
+    font-size: 32px;
+    font-weight: 800;
+    color: white;
+  }
+  .ring-label { font-size: 11px; color: rgba(255,255,255,0.5); letter-spacing: 1px; text-transform: uppercase; }
+
+  .results-title {
+    font-family: 'Arial Black', Arial, sans-serif;
+    font-size: 26px;
+    font-weight: 800;
+    color: white;
+    text-align: center;
+    margin-top: 8px;
+  }
+  .results-sub { color: rgba(255,255,255,0.5); text-align: center; font-size: 14px; margin-top: 6px; }
+
+  .answers-recap {
+    width: 100%;
+    margin-top: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 260px;
+    overflow-y: auto;
+  }
+  .recap-item {
+    background: rgba(255,255,255,0.05);
+    border-radius: 12px;
+    padding: 12px 16px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    border: 1px solid rgba(255,255,255,0.07);
+  }
+  .recap-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+  .recap-q { font-size: 13px; color: rgba(255,255,255,0.7); line-height: 1.4; }
+  .recap-a { font-size: 12px; margin-top: 3px; font-weight: 600; }
+  .recap-a.ok { color: var(--green); }
+  .recap-a.no { color: var(--red); }
+
+  .btn-restart {
+    margin-top: 24px;
+    background: linear-gradient(135deg, var(--purple-main), #EC4899);
+    color: white;
+    border: none;
+    padding: 16px 32px;
+    border-radius: 100px;
+    font-family: 'Arial Black', Arial, sans-serif;
+    font-size: 16px;
+    font-weight: 800;
+    cursor: pointer;
+    width: 100%;
+    box-shadow: 0 8px 30px rgba(139,92,246,0.35);
+    transition: transform 0.2s;
+  }
+  .btn-restart:hover { transform: scale(1.02); }
+
+  /* Confetti */
+  .confetti-piece {
+    position: fixed;
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    top: -20px;
+    animation: confettiFall linear forwards;
+    pointer-events: none;
+    z-index: 999;
+  }
+  @keyframes confettiFall {
+    to { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+  }
+
+  /* Scrollbar */
+  .answers-recap::-webkit-scrollbar { width: 4px; }
+  .answers-recap::-webkit-scrollbar-track { background: transparent; }
+  .answers-recap::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<div class="blob blob1"></div>
+<div class="blob blob2"></div>
+<div class="blob blob3"></div>
+
+<!-- INTRO -->
+<div class="screen active" id="screen-intro">
+  <div class="intro-logo"><span>SOS</span></div>
+  <div class="intro-sub">Local Services Platform</div>
+  <div class="intro-title">How well do you know<br><em>our app?</em></div>
+  <p class="intro-desc">Answer 8 questions about SOS.<br>Test your knowledge, earn your score!</p>
+  <div class="badge-row">
+    <div class="badge">🏆 8 Questions</div>
+    <div class="badge">⚡ Game Show</div>
+    <div class="badge">📱 SOS App</div>
+  </div>
+  <button class="btn-start" onclick="startQuiz()">Let's Play! 🎮</button>
+</div>
+
+<!-- QUESTION -->
+<div class="screen" id="screen-question">
+  <div class="progress-bar-wrap" style="width:100%">
+    <div class="progress-bar-fill" id="progress-fill" style="width:0%"></div>
+  </div>
+  <div class="q-meta">
+    <span class="q-counter" id="q-counter">Question 1 / 8</span>
+    <span class="q-score-badge" id="score-live">⭐ 0 pts</span>
+  </div>
+  <div class="q-card">
+    <span class="q-emoji" id="q-emoji">💜</span>
+    <div class="q-text" id="q-text">Question here</div>
+  </div>
+  <div class="options-grid" id="options-grid"></div>
+  <div class="feedback-bar" id="feedback-bar"></div>
+  <button class="btn-next" id="btn-next" onclick="nextQuestion()">Next →</button>
+</div>
+
+<!-- RESULTS -->
+<div class="screen" id="screen-results">
+  <div class="results-ring">
+    <svg width="140" height="140" viewBox="0 0 140 140">
+      <circle class="ring-bg" cx="70" cy="70" r="60"/>
+      <circle class="ring-fill" id="ring-fill" cx="70" cy="70" r="60"
+        stroke-dasharray="377" stroke-dashoffset="377"/>
+    </svg>
+    <div class="ring-text">
+      <div class="ring-score" id="final-score">0</div>
+      <div class="ring-label">points</div>
+    </div>
+  </div>
+  <div class="results-title" id="results-title">Well done!</div>
+  <div class="results-sub" id="results-sub">You got X/8 correct</div>
+  <div class="answers-recap" id="answers-recap"></div>
+  <button class="btn-restart" onclick="restartQuiz()">🔁 Play Again</button>
+</div>
+
+<script>
+const questions = [
+  {
+    emoji: "🆘",
+    text: "What does the SOS app help you do?",
+    options: ["Order food online", "Find trusted local service providers", "Book flights & hotels", "Watch live TV"],
+    correct: 1,
+    explanation: "SOS connects you with verified local service providers — Fast, Safe, Verified!"
+  },
+  {
+    emoji: "🔐",
+    text: "What is required to create an account on SOS?",
+    options: ["Just a phone number", "Email + password only", "National ID + Live selfie verification", "Facebook login"],
+    correct: 2,
+    explanation: "SOS requires your National ID and a live selfie for identity verification — safety first!"
+  },
+  {
+    emoji: "👤",
+    text: "What is the minimum age to register on SOS?",
+    options: ["16 years old", "21 years old", "No age limit", "18 years old"],
+    correct: 3,
+    explanation: "You must be 18 or older to register on SOS."
+  },
+  {
+    emoji: "🤖",
+    text: "What can the SOS AI Assistant do for you?",
+    options: ["Play music and set alarms", "Find services, compare providers & help your account", "Order groceries automatically", "Translate languages"],
+    correct: 1,
+    explanation: "The SOS Assistant finds services, recommends providers, compares prices and helps with your account!"
+  },
+  {
+    emoji: "💰",
+    text: "What is the platform commission per completed booking?",
+    options: ["5%", "25%", "15%", "30%"],
+    correct: 2,
+    explanation: "SOS takes 15% per booking — providers keep 85% of their earnings."
+  },
+  {
+    emoji: "🎁",
+    text: "How many points do you earn per booking in the loyalty program?",
+    options: ["+10 pts", "+50 pts", "+100 pts", "+200 pts"],
+    correct: 1,
+    explanation: "Every booking earns you +50 points! Use them for free coffee or a free service session."
+  },
+  {
+    emoji: "💬",
+    text: "What happens to the Live Mission Chat when a job is done?",
+    options: ["It stays open forever", "It gets deleted immediately", "It auto-closes on completion", "You have to close it manually"],
+    correct: 2,
+    explanation: "The live mission chat automatically closes when the mission is marked as complete."
+  },
+  {
+    emoji: "🗺️",
+    text: "When does SOS reveal the customer's exact address to the provider?",
+    options: ["Immediately after booking", "When the provider is within 500m", "After the service is complete", "Never — it's always hidden"],
+    correct: 1,
+    explanation: "For privacy, the exact address is only revealed when the provider is within 500m — smart safety feature!"
+  }
+];
+
+let current = 0;
+let score = 0;
+let answered = false;
+let userAnswers = [];
+
+function startQuiz() {
+  current = 0; score = 0; answered = false; userAnswers = [];
+  showScreen('screen-question');
+  renderQuestion();
+}
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function renderQuestion() {
+  const q = questions[current];
+  answered = false;
+  document.getElementById('q-counter').textContent = `Question ${current + 1} / ${questions.length}`;
+  document.getElementById('score-live').textContent = `⭐ ${score} pts`;
+  document.getElementById('progress-fill').style.width = `${(current / questions.length) * 100}%`;
+  document.getElementById('q-emoji').textContent = q.emoji;
+  document.getElementById('q-text').textContent = q.text;
+  document.getElementById('feedback-bar').style.display = 'none';
+  document.getElementById('btn-next').style.display = 'none';
+
+  const grid = document.getElementById('options-grid');
+  grid.innerHTML = '';
+  const letters = ['A', 'B', 'C', 'D'];
+  q.options.forEach((opt, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'opt-btn';
+    btn.innerHTML = `<span class="opt-letter">${letters[i]}</span>${opt}`;
+    btn.onclick = () => selectAnswer(i);
+    grid.appendChild(btn);
+  });
+}
+
+function selectAnswer(idx) {
+  if (answered) return;
+  answered = true;
+
+  const q = questions[current];
+  const btns = document.querySelectorAll('.opt-btn');
+  const feedback = document.getElementById('feedback-bar');
+  const isCorrect = idx === q.correct;
+
+  btns.forEach((btn, i) => {
+    btn.disabled = true;
+    if (i === q.correct) btn.classList.add(isCorrect ? 'correct' : 'reveal-correct');
+    if (i === idx && !isCorrect) btn.classList.add('wrong');
+  });
+
+  if (isCorrect) {
+    score += 100;
+    feedback.className = 'feedback-bar correct';
+    feedback.textContent = '✅ Correct! +100 pts';
+  } else {
+    feedback.className = 'feedback-bar wrong';
+    feedback.textContent = `❌ ${q.explanation}`;
+  }
+
+  feedback.style.display = 'block';
+  document.getElementById('score-live').textContent = `⭐ ${score} pts`;
+  document.getElementById('btn-next').style.display = 'block';
+  document.getElementById('btn-next').textContent = current < questions.length - 1 ? 'Next →' : 'See Results 🎯';
+
+  userAnswers.push({ question: q.text, userIdx: idx, correctIdx: q.correct, correct: isCorrect, options: q.options });
+}
+
+function nextQuestion() {
+  current++;
+  if (current < questions.length) {
+    renderQuestion();
+  } else {
+    showResults();
+  }
+}
+
+function showResults() {
+  showScreen('screen-results');
+  const correct = userAnswers.filter(a => a.correct).length;
+  const pct = Math.round((score / (questions.length * 100)) * 100);
+
+  document.getElementById('final-score').textContent = score;
+  document.getElementById('results-sub').textContent = `You got ${correct} / ${questions.length} correct`;
+
+  let title = correct <= 2 ? '📚 Keep Learning!' : correct <= 5 ? '👍 Good Job!' : correct <= 7 ? '🔥 Great Work!' : '🏆 Perfect Score!';
+  document.getElementById('results-title').textContent = title;
+
+  // Ring animation
+  const circumference = 377;
+  const offset = circumference - (pct / 100) * circumference;
+  const ring = document.getElementById('ring-fill');
+  ring.style.stroke = pct >= 75 ? '#10B981' : pct >= 50 ? '#F59E0B' : '#8B5CF6';
+  setTimeout(() => { ring.style.strokeDashoffset = offset; }, 200);
+
+  // Recap
+  const recap = document.getElementById('answers-recap');
+  recap.innerHTML = '';
+  userAnswers.forEach(a => {
+    const div = document.createElement('div');
+    div.className = 'recap-item';
+    div.innerHTML = `
+      <div class="recap-icon">${a.correct ? '✅' : '❌'}</div>
+      <div>
+        <div class="recap-q">${a.question}</div>
+        <div class="recap-a ${a.correct ? 'ok' : 'no'}">
+          ${a.correct ? `✓ ${a.options[a.correctIdx]}` : `✗ You said: ${a.options[a.userIdx]} · Correct: ${a.options[a.correctIdx]}`}
+        </div>
+      </div>`;
+    recap.appendChild(div);
+  });
+
+  if (correct >= 6) launchConfetti();
+}
+
+function launchConfetti() {
+  const colors = ['#8B5CF6','#EC4899','#F59E0B','#10B981','#A78BFA','#ffffff'];
+  for (let i = 0; i < 60; i++) {
+    const piece = document.createElement('div');
+    piece.className = 'confetti-piece';
+    piece.style.cssText = `
+      left: ${Math.random() * 100}vw;
+      background: ${colors[Math.floor(Math.random() * colors.length)]};
+      width: ${6 + Math.random() * 8}px;
+      height: ${6 + Math.random() * 8}px;
+      border-radius: ${Math.random() > 0.5 ? '50%' : '2px'};
+      animation-duration: ${2 + Math.random() * 2}s;
+      animation-delay: ${Math.random() * 1}s;
+    `;
+    document.body.appendChild(piece);
+    setTimeout(() => piece.remove(), 4000);
+  }
+}
+
+function restartQuiz() {
+  startQuiz();
+}
+</script>
+</body>
+</html>
